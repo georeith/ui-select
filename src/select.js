@@ -150,13 +150,14 @@
     ctrl.selected = undefined;
     ctrl.open = false;
     ctrl.focus = false;
-    ctrl.focusser = undefined; //Reference to input element used to handle focus events  
+    ctrl.focusser = undefined; //Reference to input element used to handle focus events
     ctrl.disabled = undefined; // Initialized inside uiSelect directive link function
     ctrl.searchEnabled = undefined; // Initialized inside uiSelect directive link function
     ctrl.resetSearchInput = undefined; // Initialized inside uiSelect directive link function
     ctrl.refreshDelay = undefined; // Initialized inside uiSelectChoices directive link function
     ctrl.multiple = false; // Initialized inside uiSelect directive link function
     ctrl.disableChoiceExpression = undefined; // Initialized inside uiSelect directive link function
+    ctrl.closeOnBlur = true;
 
     ctrl.isEmpty = function() {
       return angular.isUndefined(ctrl.selected) || ctrl.selected === null || ctrl.selected === '';
@@ -249,7 +250,7 @@
               var filteredItems = items.filter(function(i) {return ctrl.selected.indexOf(i) < 0;});
               setItemsFn(filteredItems);
             }else{
-              setItemsFn(items);              
+              setItemsFn(items);
             }
             ctrl.ngModel.$modelValue = null; //Force scope model value and ngModel value to be out of sync to re-run formatters
 
@@ -259,7 +260,7 @@
       });
 
       if (ctrl.multiple){
-        //Remove already selected items 
+        //Remove already selected items
         $scope.$watchCollection('$select.selected', function(selectedItems){
           if (!selectedItems) return;
           var data = ctrl.parserResult.source($scope);
@@ -342,7 +343,7 @@
         _resetSearchInput();
         ctrl.open = false;
         $timeout(function(){
-          ctrl.focusser[0].focus();          
+          ctrl.focusser[0].focus();
         },0,false);
       }
     };
@@ -412,7 +413,7 @@
     // Handles selected options in "multiple" mode
     function _handleMatchSelection(key){
       var caretPosition = _getCaretPosition(_searchInput[0]),
-          length = ctrl.selected.length, 
+          length = ctrl.selected.length,
           // none  = -1,
           first = 0,
           last  = length-1,
@@ -435,7 +436,7 @@
             break;
           case KEY.RIGHT:
             // Open drop-down
-            if(!~ctrl.activeMatchIndex || curr === last){ 
+            if(!~ctrl.activeMatchIndex || curr === last){
               ctrl.activate();
               return false;
             }
@@ -458,7 +459,7 @@
               return curr;
             }
             else return false;
-        }      
+        }
       }
 
       newIndex = getNewActiveMatchIndex();
@@ -485,11 +486,11 @@
         if(ctrl.multiple && KEY.isHorizontalMovement(key)){
           processed = _handleMatchSelection(key);
         }
-        
+
         if (!processed && ctrl.items.length > 0) {
           processed = _handleDropDownSelection(key);
         }
-        
+
         if (processed  && key != KEY.TAB) {
           //TODO Check si el tab selecciona aun correctamente
           //Crear test
@@ -505,6 +506,10 @@
     });
 
     _searchInput.on('blur', function() {
+      if (ctrl.closeOnBlur) {
+        ctrl.close();
+      }
+      ctrl.closeOnBlur = true;
       $timeout(function() {
         ctrl.activeMatchIndex = -1;
         ctrl.activeIndex = 0;
@@ -595,7 +600,7 @@
 
         //From model --> view
         ngModel.$formatters.unshift(function (inputValue) {
-          var data = $select.parserResult.source (scope, { $select : {search:''}}), //Overwrite $search 
+          var data = $select.parserResult.source (scope, { $select : {search:''}}), //Overwrite $search
               locals = {},
               result;
           if (data){
@@ -647,7 +652,7 @@
         if(attrs.tabindex){
           //tabindex might be an expression, wait until it contains the actual value before we set the focusser tabindex
           attrs.$observe('tabindex', function(value) {
-            //If we are using multiple, add tabindex to the search input 
+            //If we are using multiple, add tabindex to the search input
             if($select.multiple){
               searchInput.attr("tabindex", value);
             } else {
@@ -702,7 +707,7 @@
             if (e.which === KEY.TAB || KEY.isControl(e) || KEY.isFunctionKey(e) || e.which === KEY.ESC || e.which == KEY.ENTER || e.which === KEY.BACKSPACE) {
               return;
             }
-            
+
             $select.activate(focusser.val()); //User pressed some regular key, so we pass it to the search input
             focusser.val('');
             scope.$digest();
@@ -758,30 +763,6 @@
           $select.selected = ngModel.$viewValue;
         };
 
-        function onDocumentClick(e) {
-          var contains = false;
-
-          if (window.jQuery) {
-            // Firefox 3.6 does not support element.contains()
-            // See Node.contains https://developer.mozilla.org/en-US/docs/Web/API/Node.contains
-            contains = window.jQuery.contains(element[0], e.target);
-          } else {
-            contains = element[0].contains(e.target);
-          }
-
-          if (!contains) {
-            $select.close();
-            scope.$digest();
-          }
-        }
-
-        // See Click everywhere but here event http://stackoverflow.com/questions/12931369
-        $document.on('click', onDocumentClick);
-
-        scope.$on('$destroy', function() {
-          $document.off('click', onDocumentClick);
-        });
-
         // Move transcluded elements to their correct position in main template
         transcludeFn(scope, function(clone) {
           // See Transclude in AngularJS http://blog.omkarpatil.com/2012/11/transclude-in-angularjs.html
@@ -829,7 +810,7 @@
         if (!tAttrs.repeat) throw uiSelectMinErr('repeat', "Expected 'repeat' expression.");
 
         return function link(scope, element, attrs, $select, transcludeFn) {
-          
+
           // var repeat = RepeatParser.parse(attrs.repeat);
           var groupByExp = attrs.groupBy;
 
@@ -850,6 +831,7 @@
 
           choices.attr('ng-repeat', RepeatParser.getNgRepeatExpression($select.parserResult.itemName, '$select.items', $select.parserResult.trackByExp, groupByExp))
               .attr('ng-mouseenter', '$select.setActiveItem('+$select.parserResult.itemName +')')
+              .attr('ng-mousedown', '$select.closeOnBlur = false')
               .attr('ng-click', '$select.select(' + $select.parserResult.itemName + ')');
 
           var rowsInner = element.querySelectorAll('.ui-select-choices-row-inner');
