@@ -1,7 +1,7 @@
 /*!
  * ui-select
  * http://github.com/angular-ui/ui-select
- * Version: 0.7.1 - 2014-09-26T16:01:00.824Z
+ * Version: 0.7.0 - 2014-09-29T16:17:34.943Z
  * License: MIT
  */
 
@@ -165,7 +165,6 @@
     ctrl.refreshDelay = undefined; // Initialized inside uiSelectChoices directive link function
     ctrl.multiple = false; // Initialized inside uiSelect directive link function
     ctrl.disableChoiceExpression = undefined; // Initialized inside uiSelect directive link function
-    ctrl.closeOnBlur = true;
 
     ctrl.isEmpty = function() {
       return angular.isUndefined(ctrl.selected) || ctrl.selected === null || ctrl.selected === '';
@@ -514,10 +513,6 @@
     });
 
     _searchInput.on('blur', function() {
-      if (ctrl.closeOnBlur) {
-        ctrl.close();
-      }
-      ctrl.closeOnBlur = true;
       $timeout(function() {
         ctrl.activeMatchIndex = -1;
         ctrl.activeIndex = 0;
@@ -580,6 +575,9 @@
         var ngModel = ctrls[1];
 
         var searchInput = element.querySelectorAll('input.ui-select-search');
+        if (attrs.inputId) {
+          searchInput[0].id = attrs.inputId;
+        }
 
         $select.multiple = angular.isDefined(attrs.multiple);
 
@@ -771,6 +769,30 @@
           $select.selected = ngModel.$viewValue;
         };
 
+        function onDocumentClick(e) {
+          var contains = false;
+
+          if (window.jQuery) {
+            // Firefox 3.6 does not support element.contains()
+            // See Node.contains https://developer.mozilla.org/en-US/docs/Web/API/Node.contains
+            contains = window.jQuery.contains(element[0], e.target);
+          } else {
+            contains = element[0].contains(e.target);
+          }
+
+          if (!contains) {
+            $select.close();
+            scope.$digest();
+          }
+        }
+
+        // See Click everywhere but here event http://stackoverflow.com/questions/12931369
+        $document.on('click', onDocumentClick);
+
+        scope.$on('$destroy', function() {
+          $document.off('click', onDocumentClick);
+        });
+
         // Move transcluded elements to their correct position in main template
         transcludeFn(scope, function(clone) {
           // See Transclude in AngularJS http://blog.omkarpatil.com/2012/11/transclude-in-angularjs.html
@@ -839,7 +861,6 @@
 
           choices.attr('ng-repeat', RepeatParser.getNgRepeatExpression($select.parserResult.itemName, '$select.items', $select.parserResult.trackByExp, groupByExp))
               .attr('ng-mouseenter', '$select.setActiveItem('+$select.parserResult.itemName +')')
-              .attr('ng-mousedown', '$select.closeOnBlur = false')
               .attr('ng-click', '$select.select(' + $select.parserResult.itemName + ')');
 
           var rowsInner = element.querySelectorAll('.ui-select-choices-row-inner');
