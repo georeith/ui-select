@@ -1,7 +1,7 @@
 /*!
  * ui-select
  * http://github.com/angular-ui/ui-select
- * Version: 0.7.1 - 2014-09-26T16:01:00.824Z
+ * Version: 0.7.1 - 2014-09-29T15:55:54.985Z
  * License: MIT
  */
 
@@ -580,6 +580,9 @@
         var ngModel = ctrls[1];
 
         var searchInput = element.querySelectorAll('input.ui-select-search');
+        if (attrs.inputId) {
+          searchInput[0].id = attrs.inputId;
+        }
 
         $select.multiple = angular.isDefined(attrs.multiple);
 
